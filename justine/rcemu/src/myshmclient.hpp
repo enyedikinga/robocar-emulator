@@ -516,6 +516,7 @@ private:
     unsigned from;
     unsigned to;
     int step;
+    int trueID;
   };
 
   typedef SmartCar Gangster;

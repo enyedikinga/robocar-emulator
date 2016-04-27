@@ -28,7 +28,7 @@
  * desc
  *
  */
-
+#include <iterator>
 #include <myshmclient.hpp>
 //#include <trafficlexer.hpp>
 
@@ -66,10 +66,14 @@ std::vector<justine::sampleclient::MyShmClient::Gangster> justine::sampleclient:
   int nn {0};
   std::vector<Gangster> gangsters;
 
+  int trueID {0};
+
   while ( std::sscanf ( data+nn, "<OK %d %u %u %u>%n", &idd, &f, &t, &s, &n ) == 4 )
     {
       nn += n;
-      gangsters.push_back ( Gangster {idd, f, t, s} );
+      gangsters.push_back ( Gangster {idd, f, t, s, trueID} );
+      //std::cout << "idd= " << idd << "\ttrueID= " << trueID << std::endl;
+      ++trueID;
     }
 
   std::sort ( gangsters.begin(), gangsters.end(), [this, cop] ( Gangster x, Gangster y )
@@ -339,18 +343,36 @@ void justine::sampleclient::MyShmClient::start10 ( boost::asio::io_service& io_s
 
   std::vector<Gangster> gngstrs;
 
+  bool same {false};
+  int g_trueID {0};
+
   for ( ;; )
     {
       std::this_thread::sleep_for ( std::chrono::milliseconds ( 200 ) );
 
-      for ( auto cop:cops )
+      for ( std::vector<int>::iterator it = cops.begin(); it < cops.end(); it++ )
         {
-          car ( socket, cop, &f, &t, &s );
+          car ( socket, *it, &f, &t, &s );
 
-          gngstrs = gangsters ( socket, cop, t );
+          gngstrs = gangsters ( socket, *it, t );
 
-          if ( gngstrs.size() > 0 )
-            g = gngstrs[0].to;
+          if ( gngstrs.size() > 0 ){
+            
+            if( !same ){
+                g = gngstrs[gngstrs.size()-1].to;
+                g_trueID = gngstrs[gngstrs.size()-1].trueID;
+                same = true;
+            }
+            else{
+                for( int i=0; i<gngstrs.size(); i++ ){
+                    if( gngstrs[i].trueID == g_trueID ){
+                        g = gngstrs[i].to;
+                        break;
+                    }
+                }
+            }
+          }
+
           else
             g = 0;
 
@@ -365,7 +387,7 @@ void justine::sampleclient::MyShmClient::start10 ( boost::asio::io_service& io_s
                   std::copy ( path.begin(), path.end(),
                               std::ostream_iterator<osmium::unsigned_object_id_type> ( std::cout, " -> " ) );
 
-                  route ( socket, cop, path );
+                  route ( socket, *it, path );
                 }
             }
         }
